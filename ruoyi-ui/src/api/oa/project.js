@@ -42,3 +42,28 @@ export function delProject(projectId) {
     method: 'delete'
   })
 }
+
+// 查询项目里程碑（按 M0-M6 分组）
+export function getMilestones(projectId) {
+  return request({
+    url: '/oa/project/milestone/' + projectId,
+    method: 'get'
+  })
+}
+
+// 更新里程碑任务
+export function updateMilestoneTask(data) {
+  return request({
+    url: '/oa/project/milestone/task',
+    method: 'put',
+    data: data
+  })
+}
+
+// 推进到下一里程碑
+export function advanceMilestone(projectId) {
+  return request({
+    url: '/oa/project/milestone/advance/' + projectId,
+    method: 'post'
+  })
+}

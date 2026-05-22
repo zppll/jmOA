@@ -82,6 +82,27 @@ public class SysOaProject extends BaseEntity {
      * 状态
      */
     private String projectStatus;
+
+    /**
+     * 当前里程碑 M0-M6
+     */
+    private String currentMilestone;
+
+    /**
+     * 营销中心负责人
+     */
+    private String deptMarketing;
+
+    /**
+     * 解决方案中心负责人
+     */
+    private String deptSolution;
+
+    /**
+     * 技术中心负责人
+     */
+    private String deptTech;
+
     /**
      * 关联合同ID
      */

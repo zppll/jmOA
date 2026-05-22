@@ -7,9 +7,12 @@ import com.ruoyi.common.core.domain.PageQuery;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.ruoyi.oa.domain.SysOaContract;
+import com.ruoyi.oa.config.SopTemplateUtil;
+import com.ruoyi.oa.domain.SysOaProjectMilestone;
+import com.ruoyi.oa.mapper.SysOaProjectMilestoneMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.oa.domain.bo.SysOaProjectBo;
 import com.ruoyi.oa.domain.vo.SysOaProjectVo;
 import com.ruoyi.oa.domain.SysOaProject;
@@ -29,6 +32,7 @@ import java.util.*;
 public class SysOaProjectServiceImpl implements ISysOaProjectService {
 
     private final SysOaProjectMapper baseMapper;
+    private final SysOaProjectMilestoneMapper milestoneMapper;
 
     /**
      * 查询项目管理
@@ -71,15 +75,25 @@ public class SysOaProjectServiceImpl implements ISysOaProjectService {
     }
 
     /**
-     * 新增项目管理
+     * 新增项目管理，同时按 SOP 模板初始化 M0-M6 里程碑任务
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean insertByBo(SysOaProjectBo bo) {
         SysOaProject add = BeanUtil.toBean(bo, SysOaProject.class);
+        add.setCurrentMilestone("M0");
         validEntityBeforeSave(add);
         boolean flag = baseMapper.insert(add) > 0;
         if (flag) {
             bo.setProjectId(add.getProjectId());
+            // 初始化 SOP 里程碑：M0 任务进行中，其余待开始
+            List<SysOaProjectMilestone> milestones = SopTemplateUtil.buildTemplate(add.getProjectId());
+            for (SysOaProjectMilestone m : milestones) {
+                if ("M0".equals(m.getMilestoneCode())) {
+                    m.setStatus("1");
+                }
+            }
+            milestones.forEach(milestoneMapper::insert);
         }
         return flag;
     }
@@ -102,13 +116,12 @@ public class SysOaProjectServiceImpl implements ISysOaProjectService {
     }
 
     /**
-     * 批量删除项目管理
+     * 批量删除项目管理，同时清理里程碑数据
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean deleteWithValidByIds(Collection<Long> ids, Boolean isValid) {
-        if(isValid){
-            //TODO 做一些业务上的校验,判断是否需要校验
-        }
+        ids.forEach(milestoneMapper::deleteByProjectId);
         return baseMapper.deleteBatchIds(ids) > 0;
     }
 }

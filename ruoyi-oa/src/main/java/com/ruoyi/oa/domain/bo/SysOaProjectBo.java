@@ -105,6 +105,21 @@ public class SysOaProjectBo extends BaseEntity {
     private String projectStatus;
 
     /**
+     * 营销中心负责人
+     */
+    private String deptMarketing;
+
+    /**
+     * 解决方案中心负责人
+     */
+    private String deptSolution;
+
+    /**
+     * 技术中心负责人
+     */
+    private String deptTech;
+
+    /**
      * 关联合同ID
      */
 //    @NotNull(message = "关联合同ID不能为空", groups = { AddGroup.class, EditGroup.class })

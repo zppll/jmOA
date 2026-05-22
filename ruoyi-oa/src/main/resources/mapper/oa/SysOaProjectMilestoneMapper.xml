@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.oa.mapper.SysOaProjectMilestoneMapper">
+
+    <resultMap id="MilestoneVoResult" type="com.ruoyi.oa.domain.vo.SysOaProjectMilestoneVo">
+        <id     property="milestoneId"   column="milestone_id"/>
+        <result property="projectId"     column="project_id"/>
+        <result property="milestoneCode" column="milestone_code"/>
+        <result property="milestoneName" column="milestone_name"/>
+        <result property="deptCode"      column="dept_code"/>
+        <result property="deptName"      column="dept_name"/>
+        <result property="taskName"      column="task_name"/>
+        <result property="taskDesc"      column="task_desc"/>
+        <result property="deliverableDef" column="deliverable_def"/>
+        <result property="status"        column="status"/>
+        <result property="assignee"      column="assignee"/>
+        <result property="planStart"     column="plan_start"/>
+        <result property="planEnd"       column="plan_end"/>
+        <result property="actualStart"   column="actual_start"/>
+        <result property="actualEnd"     column="actual_end"/>
+        <result property="accessory"     column="accessory"/>
+        <result property="sortNo"        column="sort_no"/>
+        <result property="updateTime"    column="update_time"/>
+    </resultMap>
+
+    <select id="selectByProjectId" resultMap="MilestoneVoResult">
+        SELECT * FROM sys_oa_project_milestone
+        WHERE project_id = #{projectId}
+        ORDER BY sort_no
+    </select>
+
+    <delete id="deleteByProjectId">
+        DELETE FROM sys_oa_project_milestone WHERE project_id = #{projectId}
+    </delete>
+
+</mapper>

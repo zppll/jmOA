@@ -864,8 +864,86 @@
             </el-tab-pane>
           </el-tabs>
         </el-tab-pane>
+        <!-- SOP 里程碑进度 -->
+        <el-tab-pane label="SOP进度" name="sop">
+          <div style="padding: 16px 0;">
+            <!-- 里程碑步骤条 -->
+            <el-steps :active="milestoneActiveIndex" finish-status="success" align-center style="margin-bottom:24px;">
+              <el-step v-for="(m,i) in milestoneSteps" :key="i" :title="m.code" :description="m.name"/>
+            </el-steps>
+
+            <!-- 推进按钮 -->
+            <div style="text-align:right; margin-bottom:16px;">
+              <el-button
+                type="primary" size="small" icon="el-icon-arrow-right"
+                :disabled="milestoneActiveIndex >= 6"
+                v-hasPermi="['oa:project:edit']"
+                @click="handleAdvanceMilestone">
+                推进到下一里程碑
+              </el-button>
+            </div>
+
+            <!-- 各里程碑任务面板 -->
+            <el-collapse v-model="openedMilestones">
+              <el-collapse-item
+                v-for="(tasks, code) in milestoneMap" :key="code"
+                :name="code"
+                :title="code + ' ' + (tasks[0] && tasks[0].milestoneName || '')">
+                <el-table :data="tasks" border size="small">
+                  <el-table-column label="部门" prop="deptName" width="120" align="center"/>
+                  <el-table-column label="任务" prop="taskName" width="160"/>
+                  <el-table-column label="说明" prop="taskDesc" show-overflow-tooltip/>
+                  <el-table-column label="产出物" prop="deliverableDef" show-overflow-tooltip/>
+                  <el-table-column label="负责人" prop="assignee" width="90" align="center"/>
+                  <el-table-column label="状态" prop="status" width="90" align="center">
+                    <template slot-scope="scope">
+                      <el-tag :type="milestoneStatusType(scope.row.status)" size="mini">
+                        {{ milestoneStatusLabel(scope.row.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="80" align="center">
+                    <template slot-scope="scope">
+                      <el-button type="text" size="mini" @click="handleEditMilestoneTask(scope.row)">编辑</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-collapse-item>
+            </el-collapse>
+          </div>
+        </el-tab-pane>
         <!--<el-tab-pane label="定时任务补偿" name="fourth">定时任务补偿</el-tab-pane>-->
       </el-tabs>
+    </el-dialog>
+
+    <!-- 里程碑任务编辑弹框 -->
+    <el-dialog title="编辑任务" :visible.sync="milestoneTaskDialogVisible" width="480px" append-to-body>
+      <el-form :model="milestoneTaskForm" label-width="90px" size="small">
+        <el-form-item label="状态">
+          <el-select v-model="milestoneTaskForm.status" style="width:100%">
+            <el-option label="待开始" value="0"/>
+            <el-option label="进行中" value="1"/>
+            <el-option label="已完成" value="2"/>
+            <el-option label="已跳过" value="3"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="负责人">
+          <el-input v-model="milestoneTaskForm.assignee" placeholder="请输入负责人"/>
+        </el-form-item>
+        <el-form-item label="计划开始">
+          <el-date-picker v-model="milestoneTaskForm.planStart" type="date" value-format="yyyy-MM-dd HH:mm:ss" style="width:100%"/>
+        </el-form-item>
+        <el-form-item label="计划结束">
+          <el-date-picker v-model="milestoneTaskForm.planEnd" type="date" value-format="yyyy-MM-dd HH:mm:ss" style="width:100%"/>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="milestoneTaskForm.remark" type="textarea" :rows="2"/>
+        </el-form-item>
+      </el-form>
+      <span slot="footer">
+        <el-button @click="milestoneTaskDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitMilestoneTask">保存</el-button>
+      </span>
     </el-dialog>
 
     <el-dialog :title="title" :visible.sync="addShow" width="76%" append-to-body>
@@ -965,6 +1043,21 @@
                                 </el-radio-group>
                               </el-form-item>
                             </el-col>-->
+          <el-col :span="8">
+            <el-form-item label="营销中心负责人">
+              <el-input v-model="form.deptMarketing" placeholder="请输入营销中心负责人"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="解决方案负责人">
+              <el-input v-model="form.deptSolution" placeholder="请输入解决方案中心负责人"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="技术中心负责人">
+              <el-input v-model="form.deptTech" placeholder="请输入技术中心负责人"/>
+            </el-form-item>
+          </el-col>
           <el-col :span="24">
             <el-form-item label="备注" prop="remark">
               <el-input v-model="form.remark" type="textarea" placeholder="请输入内容"/>
@@ -1101,7 +1194,7 @@
 </template>
 
 <script>
-import {listProject, getProject, delProject, addProject, updateProject} from "@/api/oa/project";
+import {listProject, getProject, delProject, addProject, updateProject, getMilestones, updateMilestoneTask, advanceMilestone} from "@/api/oa/project";
 import {addTask, getTaskByDictType, listTaskByType} from "@/api/oa/task";
 import {getDicts} from "@/api/system/dict/data";
 import {findContractByProjectId, getOaContract, selectContractByProjectId} from "@/api/oa/oaContract";
@@ -1129,6 +1222,21 @@ export default {
       total: 0,
       // 项目管理表格数据
       projectList: [],
+      // SOP 里程碑
+      milestoneMap: {},
+      milestoneSteps: [
+        {code: 'M0', name: '售前'},
+        {code: 'M1', name: '项目启动'},
+        {code: 'M2', name: '设计评审'},
+        {code: 'M3', name: '过程监控'},
+        {code: 'M4', name: '开发完成'},
+        {code: 'M5', name: '交付验收'},
+        {code: 'M6', name: '回款复盘'},
+      ],
+      milestoneActiveIndex: 0,
+      openedMilestones: ['M0'],
+      milestoneTaskDialogVisible: false,
+      milestoneTaskForm: {},
       //tabs标签
       activeName: 'first',
       activeTitle: 'first',
@@ -1405,12 +1513,73 @@ export default {
     handleClick(tab, event) {
       if (tab.index == '1' && this.projectId != '') {
         this.getTaskByDictType(this.projectId);
-        // this.taskWorkType(this.projectId);
-        // this.getStepsActive(this.projectId);
       }
       if (tab.index == '2' && this.projectId != '') {
         this.activeTitle = 'first'
       }
+      if (tab.name === 'sop' && this.projectId != '') {
+        this.loadMilestones(this.projectId);
+      }
+    },
+
+    loadMilestones(projectId) {
+      getMilestones(projectId).then(res => {
+        this.milestoneMap = res.data || {};
+        const milestoneOrder = ['M0','M1','M2','M3','M4','M5','M6'];
+        // 根据项目当前里程碑设置 steps active index
+        const current = this.form.currentMilestone || 'M0';
+        this.milestoneActiveIndex = milestoneOrder.indexOf(current);
+        this.openedMilestones = [current];
+      });
+    },
+
+    handleAdvanceMilestone() {
+      this.$confirm('确定推进到下一里程碑？当前里程碑的待处理任务将标记为已完成。', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        advanceMilestone(this.projectId).then(() => {
+          this.$message.success('里程碑已推进');
+          this.loadMilestones(this.projectId);
+          // 同步更新列表中的里程碑
+          getProject(this.projectId).then(res => {
+            this.form.currentMilestone = res.data.currentMilestone;
+            const milestoneOrder = ['M0','M1','M2','M3','M4','M5','M6'];
+            this.milestoneActiveIndex = milestoneOrder.indexOf(res.data.currentMilestone);
+          });
+        });
+      }).catch(() => {});
+    },
+
+    handleEditMilestoneTask(row) {
+      this.milestoneTaskForm = {
+        milestoneId: row.milestoneId,
+        status: row.status,
+        assignee: row.assignee,
+        planStart: row.planStart,
+        planEnd: row.planEnd,
+        remark: row.remark
+      };
+      this.milestoneTaskDialogVisible = true;
+    },
+
+    submitMilestoneTask() {
+      updateMilestoneTask(this.milestoneTaskForm).then(() => {
+        this.$message.success('保存成功');
+        this.milestoneTaskDialogVisible = false;
+        this.loadMilestones(this.projectId);
+      });
+    },
+
+    milestoneStatusLabel(status) {
+      const map = {'0':'待开始','1':'进行中','2':'已完成','3':'已跳过'};
+      return map[status] || status;
+    },
+
+    milestoneStatusType(status) {
+      const map = {'0':'info','1':'primary','2':'success','3':''};
+      return map[status] || 'info';
     },
 
     activeClick(tab, event) {
