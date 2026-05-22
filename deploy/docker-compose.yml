@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: jmoa-mysql
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: "ry-vue-flowable-xg"
+    ports:
+      - "3307:3306"
+    volumes:
+      - jmoa-mysql-data:/var/lib/mysql
+      - ../script/sql/mysql/ry-vue-flowable-xg.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ../script/sql/mysql/sop_milestone.sql:/docker-entrypoint-initdb.d/02-sop.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: jmoa-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - jmoa-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: jmoa-backend
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8078:8078"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - jmoa-logs:/ruoyi/server/logs
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+    container_name: jmoa-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  jmoa-mysql-data:
+  jmoa-redis-data:
+  jmoa-logs:

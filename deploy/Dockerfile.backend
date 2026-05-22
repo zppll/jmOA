@@ -1,0 +1,29 @@
+FROM maven:3.9-eclipse-temurin-17 AS builder
+WORKDIR /build
+COPY pom.xml .
+COPY ruoyi-admin ./ruoyi-admin
+COPY ruoyi-common ./ruoyi-common
+COPY ruoyi-demo ./ruoyi-demo
+COPY ruoyi-extend ./ruoyi-extend
+COPY ruoyi-flowable ./ruoyi-flowable
+COPY ruoyi-framework ./ruoyi-framework
+COPY ruoyi-generator ./ruoyi-generator
+COPY ruoyi-job ./ruoyi-job
+COPY ruoyi-oa ./ruoyi-oa
+COPY ruoyi-oss ./ruoyi-oss
+COPY ruoyi-sms ./ruoyi-sms
+COPY ruoyi-system ./ruoyi-system
+RUN mvn package -pl ruoyi-admin -am -DskipTests -q
+
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /ruoyi/server
+RUN mkdir -p logs
+COPY --from=builder /build/ruoyi-admin/target/ruoyi-admin.jar app.jar
+COPY deploy/application-docker.yml /ruoyi/server/config/application-docker.yml
+EXPOSE 8078
+ENTRYPOINT ["java", \
+  "--add-opens", "java.base/java.lang=ALL-UNNAMED", \
+  "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED", \
+  "--add-opens", "java.base/java.util=ALL-UNNAMED", \
+  "-jar", "app.jar", \
+  "--spring.config.additional-location=file:/ruoyi/server/config/"]
